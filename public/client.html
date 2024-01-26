@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC Example</title>
+</head>
+<body>
+<h1>WebRTC Example</h1>
+
+<label for="roomId">房间id:</label>
+<input type="text" id="roomId">
+<label for="userId">用户id:</label>
+<input type="text" id="userId">
+<button onclick="_joinRoom()">加入房间</button>
+<button onclick="_leaveRoom()">离开房间</button>
+
+<video id="remoteVideo" autoplay playsinline></video>
+
+<script src="signal.js"></script>
+<script>
+    const remoteVideo = document.getElementById('remoteVideo')
+    const roomId = document.getElementById('roomId')
+    const userId = document.getElementById('userId')
+    const svr = new SignalService(remoteVideo)
+    svr.onChannelChange = (id)=>{
+        userId.value = id
+    }
+    function _joinRoom(){
+        svr.join(roomId.value)
+    }
+    function _leaveRoom(){
+        svr.close()
+    }
+</script>
+</body>
+</html>
