@@ -20,6 +20,12 @@
 <script src="signal.js"></script>
 <script>
     const remoteVideo = document.getElementById('remoteVideo')
+
+    remoteVideo.onloadedmetadata = function(e) {
+        console.log("metadata was loaded!")
+        remoteVideo.play();
+        };
+
     const roomId = document.getElementById('roomId')
     const userId = document.getElementById('userId')
     const svr = new SignalService(remoteVideo)

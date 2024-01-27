@@ -36,6 +36,12 @@ function CreateServerBind(id, ws, role) {
 function RemoveServerBind(id) {
     const s = GetServerBind(id);
     if(s){
+        if(!s.client){
+            debugger
+        }
+        if(!s.server){
+            debugger
+        }
         s.client.close();
         s.server.close();
     }

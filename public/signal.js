@@ -2,14 +2,10 @@
 class SignalService {
     constructor(inputVideo) {
         const ws = new WebSocket('ws://127.0.0.1:3000');
-        this.peerConnection = new RTCPeerConnection();
         this.channelId = null;
         this.stream = null;
         this.video = null;
         this.onChannelChange = null;
-        ws.onopen = () => {
-            console.log('Connected to signaling server');
-        };
         ws.onclose = () => {
             console.log('Disconnected from signaling server');
         }
@@ -64,7 +60,33 @@ class SignalService {
             }
         }
         this.ws = ws
-        fetch('http://127.0.0.1:8080/create')
+        ws.onopen = () => {
+            this.peerConnection = new RTCPeerConnection();
+            // 设置ice candidate事件处理程序
+            this.peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    // TODO: 发送ICE候选到对等端，通过信令服务器转发
+                    const candidateBase64 = btoa(JSON.stringify(event.candidate));
+                    this.ws.send(JSON.stringify(
+                        {
+                            channel_id: this.channelId,
+                            type: 'candidate',
+                            payload: candidateBase64,
+                            role: 'client' }
+                    ));
+                }
+            };
+            // 设置远程流事件处理程序
+            this.peerConnection.ontrack = (event)=> {
+                console.log('Received track:', event.track);
+                if(event.streams){
+                    this.stream = event.streams[0];
+                    this.video.srcObject = this.stream;
+                }
+            };
+
+            console.log('Connected to signaling server');
+            fetch('http://127.0.0.1:8080/create')
             .then(response => response.json())
             .then(result => {
                 this.channelId = result.data.channel_id;
@@ -77,27 +99,28 @@ class SignalService {
             .catch(error => {
                 console.error('Error creating room:', error);
             });
-        // 设置ice candidate事件处理程序
-        this.peerConnection.onicecandidate = (event) => {
-            if (event.candidate) {
-                // TODO: 发送ICE候选到对等端，通过信令服务器转发
-                const candidateBase64 = btoa(JSON.stringify(event.candidate));
-                this.ws.send(JSON.stringify(
-                    {
-                        channel_id: this.channelId,
-                        type: 'candidate',
-                        payload: candidateBase64,
-                        role: 'client' }
-                ));
-            }
-        };
-        // 设置远程流事件处理程序
-        this.peerConnection.ontrack = (event)=> {
-            debugger
-            this.stream = event.streams[0];
-            this.video.srcObject = this.stream;
         };
         this.video = inputVideo;
+    }
+
+    offer(){
+        this.peerConnection.createOffer().then(offer => {
+            // 设置本地描述
+            this.peerConnection.setLocalDescription(offer).then(() => {
+                // offer 转 base64
+                const offerBase64 = btoa(JSON.stringify(offer));
+                this.ws.send(JSON.stringify({
+                    type: 'offer',
+                    channel_id: this.channelId,
+                    payload: offerBase64,
+                    role: 'client'
+                }));
+            }).catch(() => {
+                console.error('Error setting local description');
+            })
+        }).catch(error => {
+            console.error('Error creating offer:', error);
+        });
     }
 
     join(channelId) {
@@ -106,7 +129,7 @@ class SignalService {
             .then(response => response.json())
             .then(result => {
                 console.log("joinRoom:", result);
-                // 设置ice candidate事件处理程序
+                // 等服务器发送 offer
             })
             .catch(error => {
                 console.error('Error creating room:', error);
@@ -130,23 +153,7 @@ class SignalService {
             // rtcPeerConnection.ontrack = handleRemoteStream;
 
             // 发送 offer
-            this.peerConnection.createOffer().then(offer => {
-                // 设置本地描述
-                this.peerConnection.setLocalDescription(offer).then(() => {
-                    // offer 转 base64
-                    const offerBase64 = btoa(JSON.stringify(offer));
-                    this.ws.send(JSON.stringify({
-                        type: 'offer',
-                        channel_id: this.channelId,
-                        payload: offerBase64,
-                        role: 'client'
-                    }));
-                }).catch(() => {
-                    console.error('Error setting local description');
-                })
-            }).catch(error => {
-                console.error('Error creating offer:', error);
-            });
+            this.offer();
         }).catch(error => {
             console.error('Error accessing media devices.', error);
         })

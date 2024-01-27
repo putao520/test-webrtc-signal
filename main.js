@@ -27,6 +27,10 @@ wss.on('connection', (ws) => {
         }
     });
 
+    ws.on('error', (err) => {
+        console.error(err);
+    });
+
     // 处理关闭连接
     ws.on('close', () => {
         console.log('Connection closed');
